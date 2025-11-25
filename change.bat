@@ -2,20 +2,16 @@
 echo [INFO] Iniciando processo de troca de banco...
 cd /d C:\HERA\BANCO\bin
 if errorlevel 1 (
-  echo [ERRO] Nao foi possivel acessar C:\HERA\BANCO\bin.
-  goto :fail
+  powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Nao foi possivel acessar C:\HERA\BANCO\bin.' -ForegroundColor Red"
 )
-echo [OK] Diretorio do MariaDB localizado.
 
 set "BACKUP_DIR=%~dp0backup"
 if not exist "%BACKUP_DIR%" (
   echo [INFO] Criando pasta de backup...
   mkdir "%BACKUP_DIR%"
   if errorlevel 1 (
-    echo [ERRO] Nao foi possivel criar a pasta de backup.
-    goto :fail
+    powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Nao foi possivel criar a pasta de backup.' -ForegroundColor Red"
   )
-  echo [OK] Pasta de backup criada.
 ) else (
   echo [INFO] Pasta de backup ja existe.
 )
@@ -23,18 +19,14 @@ if not exist "%BACKUP_DIR%" (
 echo [INFO] Gerando backup do banco atual...
 mariadb-dump -u root -p240190 database > "%BACKUP_DIR%\backup_database_%DATE:~0,2%-%DATE:~3,2%-%DATE:~6,4%_%time:~0,2%-%time:~3,2%.sql"
 if errorlevel 1 (
-  echo [ERRO] Falha ao gerar o backup do banco.
-  goto :fail
+  powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Falha ao gerar o backup do banco.' -ForegroundColor Red"
 )
-echo [OK] Backup gerado com sucesso.
 
 echo [INFO] Recriando o banco de dados.
 mariadb -u root -p240190 --default-character-set=utf8 -e "DROP DATABASE IF EXISTS `database`; CREATE DATABASE `database` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci; USE `database`; SET FOREIGN_KEY_CHECKS = 0;"
 if errorlevel 1 (
-  echo [ERRO] Falha ao recriar o banco de dados.
-  goto :fail
+  powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Falha ao recriar o banco de dados.' -ForegroundColor Red"
 )
-echo [OK] Banco recriado e FOREIGN_KEY_CHECKS desativado.
 
 setlocal
 
@@ -71,51 +63,41 @@ if not exist "%TEMP_SELECTION%" (
 set /p "SELECTED_FILE="<"%TEMP_SELECTION%"
 del "%TEMP_SELECTION%" >nul 2>&1
 
-echo [OK] Arquivo selecionado: "%SELECTED_FILE%"
 set "SQL_TO_IMPORT=%SELECTED_FILE%"
 for %%F in ("%SELECTED_FILE%") do (
   if /I "%%~xF"==".gz" (
     echo [INFO] Descompactando arquivo gzip...
     "%~dp0gz\bin\gzip.exe" -dk "%%~fF"
     if errorlevel 1 (
-      echo [ERRO] Falha ao descompactar o arquivo selecionado.
-      goto :fail_in_setlocal
+      powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Falha ao descompactar o arquivo selecionado.' -ForegroundColor Red"
     )
     set "SQL_TO_IMPORT=%%~dpnF"
-    echo [OK] Arquivo descompactado: "%%~dpnF"
   )
 )
 
 echo [INFO] Importando o arquivo selecionado...
 mariadb -u root -p240190 -D database --default-character-set=utf8 < "%SQL_TO_IMPORT%"
-echo [OK] Dados importados com sucesso.
 
 endlocal
 
 echo [INFO] Reativando FOREIGN_KEY_CHECKS...
 mariadb -u root -p240190 --default-character-set=utf8 -e "USE `database`; SET FOREIGN_KEY_CHECKS = 1;"
 if errorlevel 1 (
-  echo [ERRO] Falha ao reativar FOREIGN_KEY_CHECKS.
-  goto :fail
+  powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Falha ao reativar FOREIGN_KEY_CHECKS.' -ForegroundColor Red"
 )
-echo [OK] FOREIGN_KEY_CHECKS reativado.
 
 echo [INFO] Parando servico Tomcat7...
 net stop Tomcat7 >nul 2>&1
 if errorlevel 1 (
-  echo [ERRO] Falha ao parar o Tomcat7.
-  goto :fail
+  powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Falha ao parar o Tomcat7.' -ForegroundColor Red"
 )
-echo [OK] Tomcat7 parado.
 
 echo [INFO] Removendo pasta gestaofacil antiga...
 if exist C:\HERA\tomcat\webapps\gestaofacil (
   rmdir /s /q C:\HERA\tomcat\webapps\gestaofacil
   if errorlevel 1 (
-    echo [ERRO] Falha ao remover a aplicacao antiga.
-    goto :fail
+    powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Falha ao remover a aplicacao antiga.' -ForegroundColor Red"
   )
-  echo [OK] pasta gestaofacil anterior removida.
 ) else (
   echo [INFO] Nenhuma pasta gestaofacil anterior encontrada.
 )
@@ -123,19 +105,9 @@ if exist C:\HERA\tomcat\webapps\gestaofacil (
 echo [INFO] Iniciando Tomcat7...
 net start Tomcat7 >nul 2>&1
 if errorlevel 1 (
-  echo [ERRO] Falha ao iniciar o Tomcat7.
-  goto :fail
+  powershell -NoLogo -NoProfile -Command "Write-Host '[ERRO] Falha ao iniciar o Tomcat7.' -ForegroundColor Red"
 )
-echo [OK] Tomcat7 iniciado.
 
 echo [SUCESSO] Processo concluido.
 pause
 exit /b 0
-
-:fail_in_setlocal
-endlocal
-
-:fail
-echo [FALHA] Processo interrompido. Verifique as mensagens acima.
-pause
-exit /b 1
